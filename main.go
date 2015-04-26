@@ -1,10 +1,13 @@
 package main
 
-import "net"
-import "log"
-import "flag"
-import "fmt"
-import "os"
+import (
+	"encoding/hex"
+	"flag"
+	"fmt"
+	"log"
+	"net"
+	"os"
+)
 
 var bindAddress = flag.String("bind-address", "127.0.0.1", "bind address")
 var localPort = flag.Int("local-port", 6000, "local port")
@@ -12,6 +15,7 @@ var remotePort = flag.Int("remote-port", 0, "remote port")
 var remoteHost = flag.String("remote-host", "", "remote host")
 var bufferSize = flag.Int("buffer-size", 512, "buffer size")
 var displayLogs = flag.Bool("log", false, "log")
+var logFormat = flag.String("log-format", "raw", "log format (values: raw, hex)")
 
 func main() {
 	flag.Usage = func() {
@@ -52,8 +56,8 @@ func main() {
 
 	errChan := make(chan error)
 
-	go readLoop(localConn, remoteConn, errChan, "-> ")
-	go readLoop(remoteConn, localConn, errChan, "<- ")
+	go readLoop(localConn, remoteConn, errChan, true)
+	go readLoop(remoteConn, localConn, errChan, false)
 
 	select {
 	case err := <-errChan:
@@ -61,7 +65,7 @@ func main() {
 	}
 }
 
-func readLoop(from net.Conn, to net.Conn, errChan chan error, logPrefix string) {
+func readLoop(from net.Conn, to net.Conn, errChan chan error, localToRemote bool) {
 	for {
 		data := make([]byte, *bufferSize)
 		bytes, err := from.Read(data)
@@ -73,7 +77,18 @@ func readLoop(from net.Conn, to net.Conn, errChan chan error, logPrefix string) 
 		}
 
 		if *displayLogs == true {
-			log.Print(logPrefix, string(data[0:bytes]))
+			var logPrefix string
+			if localToRemote {
+				logPrefix = ">>> local to remote"
+			} else {
+				logPrefix = "<<< remote to local"
+			}
+
+			if *logFormat == "hex" {
+				log.Print(logPrefix, "\n", hex.Dump(data[0:bytes]))
+			} else {
+				log.Print(logPrefix, "\n", string(data[0:bytes]))
+			}
 		}
 
 		_, err = to.Write(data[0:bytes])

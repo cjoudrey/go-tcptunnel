@@ -14,6 +14,7 @@ Options:
   -buffer-size=512: buffer size
   -local-port=6000: local port
   -log=false: log
+  -log-format="raw": log format (values: raw, hex)
   -remote-host="": remote host
   -remote-port=0: remote port
 ```
